@@ -1,0 +1,20 @@
+# Secrets
+.env
+*.key
+*.pem
+
+# Logs and backups
+*.log
+backup/
+backups/
+database-backup/
+
+# Nextcloud runtime data (never commit user data)
+.nextcloud/
+data/
+config.php
+
+# Editor / OS noise
+.DS_Store
+*.swp
+.vscode/

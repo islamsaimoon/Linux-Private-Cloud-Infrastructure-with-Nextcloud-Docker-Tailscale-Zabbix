@@ -1,0 +1,54 @@
+# Nextcloud private cloud stack
+# Project location on the server: /opt/nextcloud
+# Start:  sudo docker compose up -d
+# Docs:   docs/04-nextcloud-stack.md
+
+services:
+  # ---------- Database (internal only, no published port) ----------
+  db:
+    image: mariadb:11.4
+    container_name: nextcloud-db
+    restart: unless-stopped
+    # Nextcloud requires READ-COMMITTED to avoid locking problems
+    command: --transaction-isolation=READ-COMMITTED
+    volumes:
+      - db_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+
+  # ---------- Cache + file locking (internal only) ----------
+  redis:
+    image: redis:7-alpine
+    container_name: nextcloud-redis
+    restart: unless-stopped
+
+  # ---------- Nextcloud web application ----------
+  app:
+    image: nextcloud:apache
+    container_name: nextcloud-app
+    restart: unless-stopped
+    ports:
+      # host:container  -> host port 80 is already used by Apache (Zabbix web UI),
+      # so Nextcloud is published on 8080 instead.
+      - "8080:80"
+    depends_on:
+      - db
+      - redis
+    volumes:
+      # Application code + config.php (Docker-managed volume, on the system disk)
+      - nextcloud_html:/var/www/html
+      # User files -> dedicated HDD (bind mount, must be owned by UID/GID 33)
+      - /mnt/storage/nextcloud/data:/var/www/html/data
+    environment:
+      MYSQL_HOST: db
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      REDIS_HOST: redis
+
+volumes:
+  db_data:
+  nextcloud_html:
